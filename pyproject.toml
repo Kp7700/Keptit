@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "keptit"
+version = "0.0.1"
+description = "Local-first photo culling tool"
+requires-python = ">=3.10"
+dependencies = [
+    "Pillow",
+]
+
+[project.scripts]
+keptit = "keptit.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["keptit*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

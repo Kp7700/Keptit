@@ -1,0 +1,52 @@
+from datetime import datetime
+from pathlib import Path
+
+from keptit.models import ImageRecord
+
+
+def test_image_record_creation():
+    record = ImageRecord(
+        id="test-001",
+        filename="photo.jpg",
+        path=Path("C:/Photos/photo.jpg"),
+        extension=".jpg",
+        file_size=1024,
+        width=1920,
+        height=1080,
+        modified_time=datetime(2026, 9, 28, 12, 0, 0),
+        image_format="JPEG",
+        status="success",
+    )
+
+    assert record.id == "test-001"
+    assert record.filename == "photo.jpg"
+    assert record.path == Path("C:/Photos/photo.jpg")
+    assert record.extension == ".jpg"
+    assert record.file_size == 1024
+    assert record.width == 1920
+    assert record.height == 1080
+    assert record.image_format == "JPEG"
+    assert record.status == "success"
+    assert record.error is None
+
+
+def test_image_record_can_store_error():
+    record = ImageRecord(
+        id="test-002",
+        filename="broken.jpg",
+        path=Path("C:/Photos/broken.jpg"),
+        extension=".jpg",
+        file_size=512,
+        width=None,
+        height=None,
+        modified_time=datetime(2026, 9, 28, 12, 0, 0),
+        image_format=None,
+        status="failed",
+        error="Unable to identify image file",
+    )
+
+    assert record.status == "failed"
+    assert record.width is None
+    assert record.height is None
+    assert record.image_format is None
+    assert record.error == "Unable to identify image file"
