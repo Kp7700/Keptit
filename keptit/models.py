@@ -3,6 +3,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+@dataclass
+class ImageMetadata:
+    """Metadata extracted from an image."""
+
+    captured_at: Optional[datetime] = None
+    camera_make: Optional[str] = None
+    camera_model: Optional[str] = None
+    orientation: Optional[int] = None
+    focal_length: Optional[float] = None
+    iso: Optional[int] = None
 
 @dataclass
 class ImageRecord:
@@ -19,6 +29,7 @@ class ImageRecord:
     image_format: Optional[str]
     status: str
     error: Optional[str] = None
+    metadata: Optional[ImageMetadata] = None
 
 @dataclass
 class ScanResult:
@@ -44,3 +55,6 @@ class ScanResult:
     def failed_count(self) -> int:
         """Return the number of supported images that failed to index."""
         return sum(image.status == "failed" for image in self.images)
+
+
+    

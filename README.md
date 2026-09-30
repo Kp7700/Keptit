@@ -4,9 +4,9 @@ Keptit is a local-first, open-source photo culling tool designed to help photogr
 
 ## Current Version
 
-**v0.0.1 — Folder Scanner + Basic Image Indexer**
+**v0.0.2 — Metadata Extractor**
 
-This version provides the foundation of Keptit by scanning folders and collecting basic information about supported image files.
+This version extends the v0.0.1 image indexer with local EXIF metadata extraction for supported images.
 
 ## Features
 
@@ -32,6 +32,16 @@ This version provides the foundation of Keptit by scanning folders and collectin
   * Modification time
   * Image format
   * Scan status
+* Extract supported EXIF metadata:
+
+  * Capture date and time
+  * Camera make
+  * Camera model
+  * Orientation
+  * Focal length
+  * ISO
+* Handle missing metadata without failing image indexing
+* Handle malformed individual metadata fields without failing image indexing
 * Unique ID for each image record
 * Structured scan results
 * Human-readable scan summary
@@ -42,9 +52,10 @@ This version provides the foundation of Keptit by scanning folders and collectin
 
 Keptit is designed as a local-first application.
 
-In v0.0.1:
+In v0.0.2:
 
 * Images are processed locally.
+* EXIF metadata is extracted locally using Pillow.
 * No images are uploaded to a cloud service.
 * No external AI APIs are used.
 * No neural-network inference is used.
@@ -109,25 +120,31 @@ Run the test suite with:
 pytest
 ```
 
-The v0.0.1 test suite covers folder scanning, supported and unsupported files, recursive scanning, corrupt images, image metadata, path handling, case-insensitive extensions, and scan results.
+The v0.0.2 test suite contains 36 tests covering folder scanning, metadata extraction, supported and unsupported files, recursive scanning, corrupt images, path handling, case-insensitive extensions, metadata handling, and scan results.
 
 ## Current Scope
 
-Keptit v0.0.1 is intentionally limited to folder scanning and basic image indexing.
+Keptit v0.0.2 covers folder scanning, basic image indexing, and selected EXIF metadata extraction.
 
 It does **not** currently perform:
 
-* EXIF analysis
+* GPS metadata extraction
+* Aperture extraction
+* Shutter speed extraction
 * Perceptual hashing
 * Duplicate or similarity detection
 * Burst grouping
 * Image quality scoring
 * Face detection
+* Eye detection
 * Image ranking or selection
+* Confidence calculation
 * RAW image processing
 * GUI-based photo culling
+* XMP writing
 * AI/ML image analysis
 * Cloud image processing
+* External AI APIs
 
 ## License
 

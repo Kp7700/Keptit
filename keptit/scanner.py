@@ -6,6 +6,8 @@ from PIL import Image, UnidentifiedImageError
 
 from keptit.models import ImageRecord, ScanResult
 
+from keptit.metadata import extract_metadata
+
 
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 
@@ -27,7 +29,6 @@ def discover_images(folder: Path, recursive: bool = False) -> list[Path]:
         if path.is_file() and is_supported_image(path)
     ]
 
-from PIL import Image
 def read_image_info(path: Path) -> tuple[int, int, str]:
     """Read width, height, and format from an image."""
     with Image.open(path) as image:
@@ -44,6 +45,9 @@ def index_image(path: Path) -> ImageRecord:
         stat = absolute_path.stat()
         width, height, image_format = read_image_info(absolute_path)
 
+        with Image.open(absolute_path) as image:
+            metadata = extract_metadata(image)
+
         return ImageRecord(
             id=str(uuid4()),
             filename=absolute_path.name,
@@ -56,6 +60,7 @@ def index_image(path: Path) -> ImageRecord:
             image_format=image_format,
             status="success",
             error=None,
+            metadata=metadata,
         )
 
     except (OSError, UnidentifiedImageError) as error:
@@ -71,6 +76,7 @@ def index_image(path: Path) -> ImageRecord:
             image_format=None,
             status="failed",
             error=str(error),
+            metadata=None,
         )
 
 def scan_folder(folder: Path, recursive: bool = False) -> ScanResult:

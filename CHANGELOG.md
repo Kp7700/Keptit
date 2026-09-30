@@ -2,6 +2,55 @@
 
 All notable changes to Keptit are documented in this file.
 
+## [0.0.2] - 2026-09-30
+
+### Added
+
+* Added the `ImageMetadata` data model for supported image metadata.
+* Added local EXIF metadata extraction using Pillow.
+* Added capture date and time extraction from `DateTimeOriginal`, with `DateTime` as a fallback.
+* Added camera make extraction.
+* Added camera model extraction.
+* Added orientation extraction.
+* Added focal length extraction with EXIF rational-value normalization.
+* Added ISO extraction.
+* Added metadata to successful `ImageRecord` instances.
+* Added handling for images without EXIF metadata.
+* Added handling for malformed individual metadata fields without failing image indexing.
+* Preserved existing corrupted-image failure behavior.
+* Added metadata extraction and scanner integration tests.
+
+### Metadata Scope
+
+The following metadata fields are supported in v0.0.2:
+
+* Capture date and time
+* Camera make
+* Camera model
+* Orientation
+* Focal length
+* ISO
+
+The following are intentionally outside the scope of v0.0.2:
+
+* GPS metadata
+* Aperture
+* Shutter speed
+* XMP
+* RAW metadata
+* Perceptual hashing
+* Similarity detection
+* Burst grouping
+* Image quality analysis
+* Face or eye detection
+* Image ranking
+* AI/ML image analysis
+* Cloud image processing
+
+### Testing
+
+* Completed the v0.0.2 test suite with 37 passing tests.
+
 ## [0.0.1] - 2026-09-29
 
 ### Added

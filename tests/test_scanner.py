@@ -279,3 +279,58 @@ def test_format_scan_summary_includes_failed_images(tmp_path):
     assert "Failed images: 1" in summary
     assert "- broken.jpg" in summary
     assert "Reason:" in summary
+
+def test_index_image_extracts_metadata(tmp_path):
+    image_path = tmp_path / "photo.jpg"
+
+    image = Image.new("RGB", (800, 600))
+    exif = image.getexif()
+    exif[271] = "Canon"
+    exif[272] = "EOS R5"
+    exif[34855] = 400
+
+    image.save(
+        image_path,
+        format="JPEG",
+        exif=exif.tobytes(),
+    )
+
+    record = index_image(image_path)
+
+    assert record.status == "success"
+    assert record.metadata is not None
+    assert record.metadata.camera_make == "Canon"
+    assert record.metadata.camera_model == "EOS R5"
+    assert record.metadata.iso == 400
+
+def test_index_image_without_exif_still_succeeds(tmp_path):
+    image_path = tmp_path / "photo.jpg"
+
+    Image.new("RGB", (800, 600)).save(
+        image_path,
+        format="JPEG",
+    )
+
+    record = index_image(image_path)
+
+    assert record.status == "success"
+    assert record.metadata is not None
+    assert record.metadata.captured_at is None
+    assert record.metadata.camera_make is None
+    assert record.metadata.camera_model is None
+    assert record.metadata.orientation is None
+    assert record.metadata.focal_length is None
+    assert record.metadata.iso is None
+
+def test_index_corrupted_image_does_not_extract_metadata(tmp_path):
+    image_path = tmp_path / "broken.jpg"
+    image_path.write_bytes(b"not a real image")
+
+    record = index_image(image_path)
+
+    assert record.status == "failed"
+    assert record.metadata is None
+    assert record.width is None
+    assert record.height is None
+    assert record.image_format is None
+    assert record.error is not None
