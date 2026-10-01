@@ -52,6 +52,7 @@ def test_image_record_can_store_error():
     assert record.image_format is None
     assert record.error == "Unable to identify image file"
 
+
 def test_image_metadata_defaults_to_none():
     metadata = ImageMetadata()
 
@@ -108,3 +109,38 @@ def test_image_record_can_store_metadata():
     assert record.metadata.camera_make == "Canon"
     assert record.metadata.camera_model == "EOS R5"
     assert record.metadata.iso == 400
+
+
+def test_image_record_perceptual_hash_defaults_to_none():
+    record = ImageRecord(
+        id="test-id",
+        filename="photo.jpg",
+        path=Path("photo.jpg"),
+        extension=".jpg",
+        file_size=1024,
+        width=100,
+        height=100,
+        modified_time=datetime.now(),
+        image_format="JPEG",
+        status="success",
+    )
+
+    assert record.perceptual_hash is None
+
+
+def test_image_record_stores_perceptual_hash():
+    record = ImageRecord(
+        id="test-id",
+        filename="photo.jpg",
+        path=Path("photo.jpg"),
+        extension=".jpg",
+        file_size=1024,
+        width=100,
+        height=100,
+        modified_time=datetime.now(),
+        image_format="JPEG",
+        status="success",
+        perceptual_hash="f3a9c7810e6b4d92",
+    )
+
+    assert record.perceptual_hash == "f3a9c7810e6b4d92"

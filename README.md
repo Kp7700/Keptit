@@ -4,9 +4,9 @@ Keptit is a local-first, open-source photo culling tool designed to help photogr
 
 ## Current Version
 
-**v0.0.2 — Metadata Extractor**
+**v0.0.3 — Perceptual Hashing**
 
-This version extends the v0.0.1 image indexer with local EXIF metadata extraction for supported images.
+This version extends the v0.0.2 metadata extractor with local 64-bit dHash generation for successfully indexed images.
 
 ## Features
 
@@ -47,15 +47,17 @@ This version extends the v0.0.1 image indexer with local EXIF metadata extractio
 * Human-readable scan summary
 * Command-line interface
 * Automated tests
+* Generate a 64-bit perceptual dHash for successfully indexed images
 
 ## Privacy
 
 Keptit is designed as a local-first application.
 
-In v0.0.2:
+In v0.0.3:
 
 * Images are processed locally.
 * EXIF metadata is extracted locally using Pillow.
+* Perceptual hashes are generated locally using Pillow.
 * No images are uploaded to a cloud service.
 * No external AI APIs are used.
 * No neural-network inference is used.
@@ -120,18 +122,17 @@ Run the test suite with:
 pytest
 ```
 
-The v0.0.2 test suite contains 36 tests covering folder scanning, metadata extraction, supported and unsupported files, recursive scanning, corrupt images, path handling, case-insensitive extensions, metadata handling, and scan results.
+The v0.0.3 test suite contains 49 tests covering folder scanning, metadata extraction, perceptual hashing, supported and unsupported files, recursive scanning, corrupt images, path handling, case-insensitive extensions, metadata handling, hashing failures, and scan results.
 
 ## Current Scope
 
-Keptit v0.0.2 covers folder scanning, basic image indexing, and selected EXIF metadata extraction.
+Keptit v0.0.3 covers folder scanning, basic image indexing, selected EXIF metadata extraction, and perceptual hashing.
 
 It does **not** currently perform:
 
 * GPS metadata extraction
 * Aperture extraction
 * Shutter speed extraction
-* Perceptual hashing
 * Duplicate or similarity detection
 * Burst grouping
 * Image quality scoring

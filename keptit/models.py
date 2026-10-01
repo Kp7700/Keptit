@@ -30,6 +30,7 @@ class ImageRecord:
     status: str
     error: Optional[str] = None
     metadata: Optional[ImageMetadata] = None
+    perceptual_hash: Optional[str] = None
 
 @dataclass
 class ScanResult:

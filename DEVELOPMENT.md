@@ -16,11 +16,11 @@ This document is a development guide. It does not replace the README or CHANGELO
 
 ## 2. Current Version
 
-Current version: **v0.0.1**
+Current version: **v0.0.3**
 
-v0.0.1 is the **Folder Scanner + Basic Image Indexer**.
+v0.0.3 is the **Folder Scanner + Metadata Extractor + Perceptual Hashing** release.
 
-The v0.0.1 implementation is considered complete.
+The v0.0.3 implementation is considered complete.
 
 The current repository contains:
 
@@ -28,16 +28,21 @@ The current repository contains:
 Keptit/
 ├── .gitignore
 ├── CHANGELOG.md
+├── DEVELOPMENT.md
 ├── LICENSE
 ├── README.md
 ├── pyproject.toml
 │
 ├── keptit/
 │   ├── cli.py
+│   ├── hashing.py
+│   ├── metadata.py
 │   ├── models.py
 │   └── scanner.py
 │
 └── tests/
+    ├── test_hashing.py
+    ├── test_metadata.py
     ├── test_models.py
     └── test_scanner.py
 ```
@@ -72,10 +77,8 @@ Do not rewrite working code without a concrete reason.
 
 Do not implement features belonging to a later Keptit version unless explicitly requested.
 
-For example, while working on v0.0.1, do not add:
+For example, while working on v0.0.3, do not add:
 
-* EXIF metadata extraction
-* perceptual hashing
 * duplicate detection
 * similarity grouping
 * burst grouping
@@ -166,7 +169,7 @@ Tests should not depend on a user's personal photo collection.
 
 ---
 
-## 5. Current v0.0.1 Scope
+## 5. Current v0.0.3 Scope
 
 The scanner currently supports:
 
@@ -191,6 +194,13 @@ The scanner can:
 * produce a human-readable scan summary
 * expose scanning through the CLI
 
+The current implementation also:
+
+* extracts selected EXIF metadata
+* generates a 64-bit perceptual dHash for successfully indexed images
+* stores the perceptual hash on `ImageRecord` objects
+* handles hashing failures as failed image records
+
 The current `ImageRecord` contains:
 
 * unique ID
@@ -204,6 +214,7 @@ The current `ImageRecord` contains:
 * image format
 * scan status
 * error information when applicable
+* perceptual hash when hashing succeeds
 
 ---
 
@@ -226,6 +237,8 @@ Do not introduce a new dependency merely because it makes a small task more conv
 Before adding a dependency, determine whether the standard library or an existing dependency is sufficient.
 
 Libraries such as OpenCV, imagehash, NumPy, SQLite, PySide6, or other large dependencies should not be introduced without a concrete requirement and explicit approval when the addition changes the project's intended architecture or scope.
+
+Perceptual hashing is implemented using Pillow. No additional hashing library is required.
 
 ---
 
@@ -252,6 +265,10 @@ except:
 ```
 
 Errors should be explicit and useful for debugging.
+
+Perceptual hashing is part of successful image indexing in v0.0.3. If perceptual hashing fails, the image is represented as a failed `ImageRecord` and the scanner continues processing remaining files.
+
+Hashing failures use the explicit `HashingError` exception rather than broad silent exception handling.
 
 ---
 
@@ -286,6 +303,17 @@ Important scanner behaviors to test include:
 * invalid folder paths
 * supported/unsupported accounting
 * scan summary formatting
+
+For perceptual hashing, tests should cover:
+
+* deterministic hashing
+* 64-bit hexadecimal output
+* structural image differences
+* RGB image input
+* known-input hash output
+* scanner hash generation
+* hashing failure handling
+* scan-level failure accounting
 
 Run:
 
@@ -432,7 +460,7 @@ A version should be considered complete only when:
 * documentation reflects the implemented behavior
 * no unfinished feature is presented as complete
 
-For v0.0.1, the completed test suite contains **22 passing tests**.
+For v0.0.3, the completed test suite contains **49 passing tests**.
 
 ---
 

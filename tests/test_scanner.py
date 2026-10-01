@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from keptit.hashing import HashingError
 from keptit.scanner import (
     discover_images,
     format_scan_summary,
@@ -8,7 +9,7 @@ from keptit.scanner import (
     read_image_info,
     scan_folder,
 )
-from PIL import Image, UnidentifiedImageError
+from PIL import Image
 
 
 def test_supported_jpg():
@@ -32,6 +33,7 @@ def test_extension_is_case_insensitive():
 def test_unsupported_file():
     assert not is_supported_image(Path("document.pdf"))
     assert not is_supported_image(Path("notes.txt"))
+
 
 def test_discover_images_non_recursive(tmp_path):
     (tmp_path / "photo1.jpg").touch()
@@ -68,6 +70,7 @@ def test_discover_images_empty_directory(tmp_path):
     images = discover_images(tmp_path)
 
     assert images == []
+
 
 def test_read_image_info(tmp_path):
     image_path = tmp_path / "photo.jpg"
@@ -107,6 +110,7 @@ def test_index_corrupted_image(tmp_path):
     assert record.height is None
     assert record.image_format is None
     assert record.error
+
 
 def test_scan_folder_empty_directory(tmp_path):
     result = scan_folder(tmp_path)
@@ -219,6 +223,7 @@ def test_scan_folder_rejects_file_path(tmp_path):
     else:
         raise AssertionError("Expected NotADirectoryError")
 
+
 def test_scan_folder_counts_supported_and_unsupported_files(tmp_path):
     Image.new("RGB", (100, 100)).save(
         tmp_path / "photo.jpg",
@@ -240,6 +245,7 @@ def test_scan_folder_counts_supported_and_unsupported_files(tmp_path):
     assert result.unsupported_count == 2
     assert result.successful_count == 2
     assert result.failed_count == 0
+
 
 def test_format_scan_summary(tmp_path):
     image_path = tmp_path / "photo.jpg"
@@ -268,6 +274,7 @@ def test_format_scan_summary(tmp_path):
     assert "None" in summary
     assert "Scan completed successfully." in summary
 
+
 def test_format_scan_summary_includes_failed_images(tmp_path):
     broken_path = tmp_path / "broken.jpg"
     broken_path.write_bytes(b"not a real image")
@@ -279,6 +286,7 @@ def test_format_scan_summary_includes_failed_images(tmp_path):
     assert "Failed images: 1" in summary
     assert "- broken.jpg" in summary
     assert "Reason:" in summary
+
 
 def test_index_image_extracts_metadata(tmp_path):
     image_path = tmp_path / "photo.jpg"
@@ -303,6 +311,7 @@ def test_index_image_extracts_metadata(tmp_path):
     assert record.metadata.camera_model == "EOS R5"
     assert record.metadata.iso == 400
 
+
 def test_index_image_without_exif_still_succeeds(tmp_path):
     image_path = tmp_path / "photo.jpg"
 
@@ -322,6 +331,7 @@ def test_index_image_without_exif_still_succeeds(tmp_path):
     assert record.metadata.focal_length is None
     assert record.metadata.iso is None
 
+
 def test_index_corrupted_image_does_not_extract_metadata(tmp_path):
     image_path = tmp_path / "broken.jpg"
     image_path.write_bytes(b"not a real image")
@@ -334,3 +344,67 @@ def test_index_corrupted_image_does_not_extract_metadata(tmp_path):
     assert record.height is None
     assert record.image_format is None
     assert record.error is not None
+
+
+def test_index_image_generates_perceptual_hash(tmp_path):
+    image_path = tmp_path / "photo.jpg"
+
+    image = Image.new("RGB", (100, 100), color="white")
+    image.save(image_path, "JPEG")
+
+    record = index_image(image_path)
+
+    assert record.status == "success"
+    assert record.perceptual_hash is not None
+    assert len(record.perceptual_hash) == 16
+
+
+def test_index_image_generates_same_hash_for_same_image(tmp_path):
+    image_path = tmp_path / "photo.jpg"
+
+    image = Image.new("RGB", (100, 100), color="white")
+    image.save(image_path, "JPEG")
+
+    first = index_image(image_path)
+    second = index_image(image_path)
+
+    assert first.perceptual_hash == second.perceptual_hash
+
+
+def test_index_image_hash_failure_marks_image_as_failed(tmp_path, monkeypatch):
+    image_path = tmp_path / "photo.jpg"
+
+    image = Image.new("RGB", (100, 100), color="white")
+    image.save(image_path, "JPEG")
+
+    def failing_hash(_image):
+        raise HashingError("hashing failed")
+
+    monkeypatch.setattr("keptit.scanner.compute_dhash", failing_hash)
+
+    record = index_image(image_path)
+
+    assert record.status == "failed"
+    assert record.error == "hashing failed"
+    assert record.perceptual_hash is None
+
+
+def test_scan_reports_hash_failure(tmp_path, monkeypatch):
+    image_path = tmp_path / "photo.jpg"
+
+    image = Image.new("RGB", (100, 100), color="white")
+    image.save(image_path, "JPEG")
+
+    def failing_hash(_image):
+        raise HashingError("hashing failed")
+
+    monkeypatch.setattr("keptit.scanner.compute_dhash", failing_hash)
+
+    result = scan_folder(tmp_path)
+
+    assert result.discovered_count == 1
+    assert result.supported_count == 1
+    assert result.successful_count == 0
+    assert result.failed_count == 1
+    assert result.images[0].status == "failed"
+    assert result.images[0].perceptual_hash is None

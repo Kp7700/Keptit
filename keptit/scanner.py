@@ -8,6 +8,8 @@ from keptit.models import ImageRecord, ScanResult
 
 from keptit.metadata import extract_metadata
 
+from keptit.hashing import HashingError, compute_dhash
+
 
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 
@@ -47,6 +49,7 @@ def index_image(path: Path) -> ImageRecord:
 
         with Image.open(absolute_path) as image:
             metadata = extract_metadata(image)
+            perceptual_hash = compute_dhash(image)
 
         return ImageRecord(
             id=str(uuid4()),
@@ -61,9 +64,10 @@ def index_image(path: Path) -> ImageRecord:
             status="success",
             error=None,
             metadata=metadata,
+            perceptual_hash=perceptual_hash,
         )
 
-    except (OSError, UnidentifiedImageError) as error:
+    except (OSError, UnidentifiedImageError, HashingError) as error:
         return ImageRecord(
             id=str(uuid4()),
             filename=absolute_path.name,

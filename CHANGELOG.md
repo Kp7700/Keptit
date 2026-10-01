@@ -2,6 +2,43 @@
 
 All notable changes to Keptit are documented in this file.
 
+## [0.0.3] - 2026-10-01
+
+### Added
+
+* Added local perceptual hashing using a 64-bit dHash implementation.
+* Added the `perceptual_hash` field to `ImageRecord`.
+* Added deterministic hexadecimal representation of generated perceptual hashes.
+* Added hashing during successful image indexing.
+* Added explicit `HashingError` handling so hashing failures produce failed image records without terminating the scan.
+* Added hashing unit tests, known-output regression testing, model tests, scanner integration tests, and hashing failure tests.
+* Kept Pillow as the only runtime dependency; no additional hashing library was introduced.
+
+### Hashing Scope
+
+The following are supported in v0.0.3:
+
+* 64-bit dHash generation
+* Local perceptual hash generation
+* Storage of the generated hash on successful `ImageRecord` instances
+
+The following remain intentionally outside the scope of v0.0.3:
+
+* Duplicate detection
+* Similarity detection
+* Similarity thresholds
+* Burst grouping
+* Image quality analysis
+* Face or eye detection
+* Image ranking
+* Image selection
+* AI/ML image analysis
+* Cloud image processing
+
+### Testing
+
+* Completed the v0.0.3 test suite with 49 passing tests.
+
 ## [0.0.2] - 2026-09-30
 
 ### Added
