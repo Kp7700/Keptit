@@ -123,3 +123,72 @@ def test_group_images_is_deterministic():
     second = group_images(images, threshold=1)
 
     assert first == second
+
+
+def test_group_images_groups_distance_below_threshold():
+    images = [
+        make_record("a", "0000000000000000"),
+        make_record("b", "0000000000000001"),
+    ]
+
+    groups = group_images(images, threshold=2)
+
+    assert [group.image_ids for group in groups] == [
+        ["a", "b"],
+    ]
+
+
+def test_group_images_groups_distance_equal_to_threshold():
+    images = [
+        make_record("a", "0000000000000000"),
+        make_record("b", "0000000000000003"),
+    ]
+
+    groups = group_images(images, threshold=2)
+
+    assert [group.image_ids for group in groups] == [
+        ["a", "b"],
+    ]
+
+
+def test_group_images_does_not_group_distance_above_threshold():
+    images = [
+        make_record("a", "0000000000000000"),
+        make_record("b", "0000000000000007"),
+    ]
+
+    groups = group_images(images, threshold=2)
+
+    assert [group.image_ids for group in groups] == [
+        ["a"],
+        ["b"],
+    ]
+
+
+def test_group_images_with_zero_threshold_groups_identical_hashes():
+    images = [
+        make_record("a", "0000000000000000"),
+        make_record("b", "0000000000000000"),
+        make_record("c", "0000000000000001"),
+    ]
+
+    groups = group_images(images, threshold=0)
+
+    assert [group.image_ids for group in groups] == [
+        ["a", "b"],
+        ["c"],
+    ]
+
+
+def test_group_images_uses_default_threshold():
+    images = [
+        make_record("a", "0000000000000000"),
+        make_record("b", "00000000000000ff"),
+        make_record("c", "00000000000001ff"),
+    ]
+
+    groups = group_images(images)
+
+    assert [group.image_ids for group in groups] == [
+        ["a", "b", "c"],
+    ]
