@@ -16,11 +16,18 @@ This document is a development guide. It does not replace the README or CHANGELO
 
 ## 2. Current Version
 
-Current version: **v0.0.3**
+Current version: **v0.0.4**
 
-v0.0.3 is the **Folder Scanner + Metadata Extractor + Perceptual Hashing** release.
+v0.0.4 is the **Folder Scanner + Metadata Extractor + Perceptual Hashing + Similarity Grouping** release.
 
-The v0.0.3 implementation is considered complete.
+The v0.0.4 implementation is considered complete.
+
+The Keptit development progression is:
+
+* v0.0.1 — Folder Scanner + Basic Image Indexer
+* v0.0.2 — Metadata Extraction
+* v0.0.3 — Perceptual Hashing
+* v0.0.4 — Similarity Grouping
 
 The current repository contains:
 
@@ -35,12 +42,15 @@ Keptit/
 │
 ├── keptit/
 │   ├── cli.py
+│   ├── grouping.py
 │   ├── hashing.py
 │   ├── metadata.py
 │   ├── models.py
 │   └── scanner.py
 │
 └── tests/
+    ├── test_cli.py
+    ├── test_grouping.py
     ├── test_hashing.py
     ├── test_metadata.py
     ├── test_models.py
@@ -77,10 +87,9 @@ Do not rewrite working code without a concrete reason.
 
 Do not implement features belonging to a later Keptit version unless explicitly requested.
 
-For example, while working on v0.0.3, do not add:
+For example, while working on v0.0.4, do not add:
 
 * duplicate detection
-* similarity grouping
 * burst grouping
 * image quality scoring
 * confidence scoring
@@ -123,7 +132,17 @@ Scanner
  └── Image indexing
        │
        ▼
-     Models
+    ImageRecord[]
+       │
+       ▼
+   Grouping
+       │
+       ├── Hash comparison
+       ├── Similarity threshold
+       └── Group construction
+              │
+              ▼
+          ImageGroup[]
 ```
 
 ### CLI
@@ -159,6 +178,25 @@ The current primary models are:
 * `ImageRecord`
 * `ScanResult`
 
+### Grouping
+
+`keptit/grouping.py`
+
+The grouping module contains similarity-grouping behavior based on the perceptual hashes already stored on successfully indexed `ImageRecord` objects.
+
+Grouping should:
+
+* consume existing perceptual hashes
+* compare hashes using Hamming distance
+* apply the configured similarity threshold
+* construct deterministic groups
+* exclude images without valid perceptual hashes
+* exclude failed image records
+
+Grouping should not perform image scanning, metadata extraction, or perceptual-hash generation.
+
+The grouping module should be usable independently of the CLI.
+
 ### Tests
 
 `tests/`
@@ -169,7 +207,7 @@ Tests should not depend on a user's personal photo collection.
 
 ---
 
-## 5. Current v0.0.3 Scope
+## 5. Current v0.0.4 Scope
 
 The scanner currently supports:
 
@@ -200,6 +238,11 @@ The current implementation also:
 * generates a 64-bit perceptual dHash for successfully indexed images
 * stores the perceptual hash on `ImageRecord` objects
 * handles hashing failures as failed image records
+* groups successfully indexed images using perceptual-hash Hamming distance
+* applies a similarity threshold during grouping
+* produces deterministic similarity groups
+* excludes images without valid perceptual hashes from grouping
+* excludes failed image records from grouping
 
 The current `ImageRecord` contains:
 
@@ -315,6 +358,23 @@ For perceptual hashing, tests should cover:
 * hashing failure handling
 * scan-level failure accounting
 
+For similarity grouping, tests should cover:
+
+* Hamming-distance calculation
+* identical hashes
+* hashes with known bit differences
+* basic similarity grouping
+* multiple independent groups
+* threshold behavior
+* isolated images
+* missing perceptual hashes
+* failed image records
+* deterministic group membership
+* deterministic group ordering
+* transitive grouping behavior where applicable
+* scanner-to-grouping integration
+* CLI grouping output
+
 Run:
 
 ```bash
@@ -341,6 +401,18 @@ and:
 
 ```bash
 keptit scan <folder> --recursive
+```
+
+Similarity grouping can be enabled with:
+
+```bash
+keptit scan <folder> --group
+```
+
+and
+
+```bash
+keptit scan <folder> --recursive --group
 ```
 
 The scanner should remain usable without invoking the CLI.
@@ -460,7 +532,7 @@ A version should be considered complete only when:
 * documentation reflects the implemented behavior
 * no unfinished feature is presented as complete
 
-For v0.0.3, the completed test suite contains **49 passing tests**.
+For v0.0.4, the completed test suite contains **70 passing tests**.
 
 ---
 
