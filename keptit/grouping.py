@@ -24,6 +24,9 @@ def group_images(
 ) -> list[ImageGroup]:
     """Group images whose perceptual hashes are within the given threshold."""
 
+    if threshold < 0:
+        raise ValueError("threshold must be non-negative")
+
     comparable_images = [
         image
         for image in images

@@ -192,3 +192,16 @@ def test_group_images_uses_default_threshold():
     assert [group.image_ids for group in groups] == [
         ["a", "b", "c"],
     ]
+
+
+def test_group_images_rejects_negative_threshold():
+    images = [
+        make_record("a", "0000000000000000"),
+    ]
+
+    try:
+        group_images(images, threshold=-1)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Expected ValueError for negative threshold")
