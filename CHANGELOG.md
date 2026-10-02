@@ -2,6 +2,69 @@
 
 All notable changes to Keptit are documented in this file.
 
+## [0.0.4] - 2026-10-02
+
+### Added
+
+* Added deterministic similarity grouping for successfully indexed images.
+* Added perceptual-hash Hamming-distance comparison for grouping.
+* Added a configurable similarity threshold for grouping images.
+* Added group representation for collections of visually similar images.
+* Added handling for images without perceptual hashes so they do not participate in grouping.
+* Added handling for failed image records so failed images do not participate in grouping.
+* Added deterministic group ordering and membership behavior.
+* Added the `--group` CLI option.
+* Added grouping output showing the number of detected groups and their image filenames.
+* Added grouping unit tests, threshold tests, deterministic grouping tests, missing-hash tests, failed-record tests, and CLI grouping tests.
+* Kept Pillow as the only runtime dependency; no additional clustering or hashing library was introduced.
+
+### Grouping Scope
+
+The following are supported in v0.0.4:
+
+* Similarity grouping using 64-bit perceptual hashes
+* Hamming-distance comparison between perceptual hashes
+* Configurable similarity threshold
+* Deterministic grouping of similar images
+* Handling of isolated images
+* Exclusion of images without valid perceptual hashes
+* Exclusion of failed image records
+* CLI output for detected groups
+
+The following remain intentionally outside the scope of v0.0.4:
+
+* Duplicate detection
+* Image quality analysis
+* Face or eye detection
+* Smile detection
+* Image ranking
+* Image selection
+* Best-photo selection
+* Confidence calculation
+* Image deletion
+* AI/ML image analysis
+* Cloud image processing
+* GUI
+* Web interface
+* Database-backed grouping
+* XMP modification
+* RAW image support
+
+### Testing
+
+* Completed the v0.0.4 test suite with 70 passing tests.
+* Added tests for Hamming-distance calculation.
+* Added tests for basic similarity grouping.
+* Added tests for multiple independent groups.
+* Added tests for threshold behavior.
+* Added tests for isolated images.
+* Added tests for missing perceptual hashes.
+* Added tests for failed image records.
+* Added deterministic grouping tests.
+* Added scanner and grouping integration tests.
+* Added CLI grouping tests.
+* Preserved all previous scanner, metadata, and perceptual-hashing regression coverage.
+
 ## [0.0.3] - 2026-10-01
 
 ### Added

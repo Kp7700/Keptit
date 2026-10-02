@@ -4,9 +4,11 @@ Keptit is a local-first, open-source photo culling tool designed to help photogr
 
 ## Current Version
 
-**v0.0.3 — Perceptual Hashing**
+**v0.0.4 — Grouping**
 
-This version extends the v0.0.2 metadata extractor with local 64-bit dHash generation for successfully indexed images.
+This version extends the v0.0.3 perceptual-hashing foundation with local similarity grouping based on perceptual-hash Hamming distance.
+
+Grouping is deterministic and operates on the perceptual hashes already stored on successfully indexed images.
 
 ## Features
 
@@ -48,12 +50,15 @@ This version extends the v0.0.2 metadata extractor with local 64-bit dHash gener
 * Command-line interface
 * Automated tests
 * Generate a 64-bit perceptual dHash for successfully indexed images
+* Group visually similar successfully indexed images using perceptual-hash Hamming distance
+* Deterministic similarity grouping
+* Display similarity groups through the command-line interface
 
 ## Privacy
 
 Keptit is designed as a local-first application.
 
-In v0.0.3:
+In v0.0.4:
 
 * Images are processed locally.
 * EXIF metadata is extracted locally using Pillow.
@@ -62,6 +67,7 @@ In v0.0.3:
 * No external AI APIs are used.
 * No neural-network inference is used.
 * The scanner does not modify image files.
+* Image grouping is performed locally using stored perceptual hashes.
 
 ## Installation
 
@@ -95,6 +101,24 @@ You can also run the CLI directly through Python:
 python -m keptit.cli scan "path/to/folder"
 ```
 
+Scan a folder and group similar images:
+
+```bash
+keptit scan "path/to/folder" --group
+```
+
+Scan a folder recursively and group similar images:
+
+```bash
+keptit scan "path/to/folder" --recursive --group
+```
+
+You can also enable grouping when running the CLI through Python:
+
+```bash
+python -m keptit.cli scan "path/to/folder" --group
+```
+
 ## Example
 
 A scan produces a summary similar to:
@@ -112,6 +136,17 @@ Failed images: 1
 Successfully indexed: 3
 ```
 
+When grouping is enabled, the scan summary is followed by the detected similarity groups:
+
+```text
+Groups found: 2
+Group 1:
+  img1.png
+  img2.jpg
+Group 2:
+  img3.png
+```
+
 Failed or unsupported files do not stop the rest of the scan.
 
 ## Testing
@@ -122,18 +157,18 @@ Run the test suite with:
 pytest
 ```
 
-The v0.0.3 test suite contains 49 tests covering folder scanning, metadata extraction, perceptual hashing, supported and unsupported files, recursive scanning, corrupt images, path handling, case-insensitive extensions, metadata handling, hashing failures, and scan results.
+The v0.0.4 test suite contains 70 tests covering folder scanning, metadata extraction, perceptual hashing, similarity grouping, Hamming-distance behavior, grouping thresholds, deterministic grouping, missing hashes, failed records, CLI grouping, supported and unsupported files, recursive scanning, corrupt images, path handling, case-insensitive extensions, metadata handling, hashing failures, and scan results.
 
 ## Current Scope
 
-Keptit v0.0.3 covers folder scanning, basic image indexing, selected EXIF metadata extraction, and perceptual hashing.
+Keptit v0.0.4 covers folder scanning, basic image indexing, selected EXIF metadata extraction, perceptual hashing, and deterministic similarity grouping.
 
 It does **not** currently perform:
 
 * GPS metadata extraction
 * Aperture extraction
 * Shutter speed extraction
-* Duplicate or similarity detection
+* Duplicate detection
 * Burst grouping
 * Image quality scoring
 * Face detection
@@ -146,6 +181,18 @@ It does **not** currently perform:
 * AI/ML image analysis
 * Cloud image processing
 * External AI APIs
+
+## Similarity Grouping
+
+Keptit v0.0.4 can group successfully indexed images according to the Hamming distance between their 64-bit perceptual hashes.
+
+A lower Hamming distance means fewer differing bits between two hashes. The grouping threshold determines the maximum distance at which images are considered similar.
+
+The threshold is an engineering heuristic rather than a universal definition of "same photo." Changing the threshold can produce smaller or larger groups.
+
+Images without a valid perceptual hash and failed image records do not participate in similarity grouping.
+
+Similarity grouping does not determine which image is better, does not rank photographs, and does not perform automatic selection or deletion.
 
 ## License
 
