@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 
 from keptit.grouping import group_images
+from keptit.quality import analyze_image_quality
 from keptit.scanner import format_scan_summary, scan_folder
 
 
@@ -40,6 +41,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Group similar images by perceptual hash.",
     )
 
+    scan_parser.add_argument(
+        "--quality",
+        action="store_true",
+        help="Calculate quality metrics for successfully indexed images.",
+    )
+
     return parser
 
 
@@ -62,6 +69,38 @@ def format_group_summary(images, groups) -> str:
     return "\n".join(lines)
 
 
+def format_quality_summary(result) -> str:
+    """Return a human-readable summary of calculated quality metrics."""
+    lines = [
+        "",
+        "Quality Metrics:",
+    ]
+
+    analyzed_images = [
+        image
+        for image in result.images
+        if image.quality_metrics is not None
+    ]
+
+    if not analyzed_images:
+        lines.append("None")
+        return "\n".join(lines)
+
+    for image in sorted(analyzed_images, key=lambda item: item.filename):
+        metrics = image.quality_metrics
+
+        lines.extend([
+            "",
+            f"- {image.filename}",
+            f"  Sharpness variance: {metrics.sharpness_variance}",
+            f"  Mean luminance: {metrics.mean_luminance}",
+            f"  Dark pixel ratio: {metrics.dark_pixel_ratio}",
+            f"  Bright pixel ratio: {metrics.bright_pixel_ratio}",
+        ])
+
+    return "\n".join(lines)
+
+
 def main() -> int:
     """Run the Keptit command-line interface."""
     parser = build_parser()
@@ -76,11 +115,23 @@ def main() -> int:
         except NotADirectoryError as error:
             parser.error(str(error))
 
+        if args.quality:
+            try:
+                result.images = [
+                    analyze_image_quality(image)
+                    for image in result.images
+                ]
+            except RuntimeError as error:
+                parser.error(str(error))
+
         print(format_scan_summary(result))
 
         if args.group:
             groups = group_images(result.images)
             print(format_group_summary(result.images, groups))
+
+        if args.quality:
+            print(format_quality_summary(result))
 
         return 0
 

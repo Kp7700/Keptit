@@ -4,11 +4,20 @@ Keptit is a local-first, open-source photo culling tool designed to help photogr
 
 ## Current Version
 
-**v0.0.4 — Grouping**
+**v0.0.5 — Quality Metrics**
 
-This version extends the v0.0.3 perceptual-hashing foundation with local similarity grouping based on perceptual-hash Hamming distance.
+This version extends the v0.0.4 grouping foundation with local image-quality measurements.
 
-Grouping is deterministic and operates on the perceptual hashes already stored on successfully indexed images.
+Quality analysis measures observable image characteristics without assigning an overall quality score or selecting a preferred image.
+
+The following quality metrics are currently calculated:
+
+- Sharpness variance
+- Mean luminance
+- Dark pixel ratio
+- Bright pixel ratio
+
+Quality analysis is deterministic and runs locally using Pillow.
 
 ## Features
 
@@ -53,16 +62,25 @@ Grouping is deterministic and operates on the perceptual hashes already stored o
 * Group visually similar successfully indexed images using perceptual-hash Hamming distance
 * Deterministic similarity grouping
 * Display similarity groups through the command-line interface
+* Calculate local image-quality measurements:
+  * Sharpness variance as a sharpness/focus proxy
+  * Mean luminance
+  * Dark pixel ratio
+  * Bright pixel ratio
+* Bound quality analysis to a maximum working dimension of 1024 pixels
+* Display quality measurements through the command-line interface
+* Enable quality analysis explicitly with `--quality`
 
 ## Privacy
 
 Keptit is designed as a local-first application.
 
-In v0.0.4:
+In v0.0.5:
 
 * Images are processed locally.
 * EXIF metadata is extracted locally using Pillow.
 * Perceptual hashes are generated locally using Pillow.
+* Quality metrics are calculated locally using Pillow.
 * No images are uploaded to a cloud service.
 * No external AI APIs are used.
 * No neural-network inference is used.
@@ -119,6 +137,72 @@ You can also enable grouping when running the CLI through Python:
 python -m keptit.cli scan "path/to/folder" --group
 ```
 
+Scan a folder and calculate quality metrics:
+
+```bash
+keptit scan "path/to/folder" --quality
+```
+
+Scan a folder recursively and calculate quality metrics:
+
+```bash
+keptit scan "path/to/folder" --recursive --quality
+```
+
+Quality analysis is opt-in. The normal scan command does not calculate quality metrics.
+
+Quality metrics can also be combined with similarity grouping:
+
+```bash
+keptit scan "path/to/folder" --quality --group
+```
+
+You can also enable quality analysis when running the CLI through Python:
+
+```bash
+python -m keptit.cli scan "path/to/folder" --quality
+```
+
+## Quality Metrics
+
+Keptit v0.0.5 reports raw image measurements rather than an overall quality score.
+
+### Sharpness Variance
+
+Sharpness is measured using the variance of a discrete Laplacian response over the grayscale image.
+
+It is a **sharpness/focus proxy**, not a direct measurement of photographic quality. Higher values indicate greater local intensity variation in the analyzed image. Texture, noise, compression artifacts, scene content, motion blur, defocus blur, resizing, and camera or editor sharpening can all affect the measurement.
+
+The sharpness calculation is performed on a working image whose longest dimension is limited to 1024 pixels. Images smaller than this limit are not enlarged.
+
+### Mean Luminance
+
+Mean luminance is the arithmetic mean of grayscale pixel values.
+
+The value ranges from 0 to 255:
+
+- 0 represents black.
+- 255 represents white.
+- Higher values indicate a brighter average image.
+
+A higher mean luminance does not mean that an image is better exposed.
+
+### Dark Pixel Ratio
+
+Dark pixel ratio is the proportion of analyzed pixels with grayscale luminance below 32.
+
+The value ranges from 0.0 to 1.0.
+
+### Bright Pixel Ratio
+
+Bright pixel ratio is the proportion of analyzed pixels with grayscale luminance above 223.
+
+The value ranges from 0.0 to 1.0.
+
+These measurements describe image characteristics. They do not determine whether an image is good or bad.
+
+Quality analysis does not perform ranking, scoring, selection, or deletion.
+
 ## Example
 
 A scan produces a summary similar to:
@@ -157,11 +241,34 @@ Run the test suite with:
 pytest
 ```
 
-The v0.0.4 test suite contains 70 tests covering folder scanning, metadata extraction, perceptual hashing, similarity grouping, Hamming-distance behavior, grouping thresholds, deterministic grouping, missing hashes, failed records, CLI grouping, supported and unsupported files, recursive scanning, corrupt images, path handling, case-insensitive extensions, metadata handling, hashing failures, and scan results.
+The current v0.0.5 test suite contains **91 tests** covering folder scanning, metadata extraction, perceptual hashing, similarity grouping, Hamming-distance behavior, grouping thresholds, deterministic grouping, missing hashes, failed records, CLI grouping, quality metrics, quality-analysis behavior, CLI quality output, supported and unsupported files, recursive scanning, corrupt images, path handling, case-insensitive extensions, metadata handling, hashing failures, scan results, and model behavior.
+
+The quality tests include deterministic synthetic-image tests for:
+
+- Uniform black images
+- Uniform white images
+- Middle-gray images
+- Mixed exposure
+- High-frequency image structure
+- Blurred images
+- Working-resolution limits
+- Small-image preservation
+- Deterministic calculations
+- ImageRecord quality integration
+- Failed-image handling
 
 ## Current Scope
 
-Keptit v0.0.4 covers folder scanning, basic image indexing, selected EXIF metadata extraction, perceptual hashing, and deterministic similarity grouping.
+Keptit v0.0.5 covers folder scanning, basic image indexing, selected EXIF metadata extraction, perceptual hashing, deterministic similarity grouping, and local image-quality measurements.
+
+Quality measurements currently include:
+
+* Sharpness variance
+* Mean luminance
+* Dark pixel ratio
+* Bright pixel ratio
+
+Quality analysis is optional and can be enabled through the `--quality` CLI option.
 
 It does **not** currently perform:
 
@@ -170,11 +277,14 @@ It does **not** currently perform:
 * Shutter speed extraction
 * Duplicate detection
 * Burst grouping
-* Image quality scoring
+* Overall image quality scoring
+* Image ranking or selection
+* Best-photo selection
+* Confidence calculation
 * Face detection
 * Eye detection
-* Image ranking or selection
-* Confidence calculation
+* Smile detection
+* Image deletion
 * RAW image processing
 * GUI-based photo culling
 * XMP writing

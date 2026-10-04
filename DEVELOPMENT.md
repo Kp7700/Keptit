@@ -16,11 +16,11 @@ This document is a development guide. It does not replace the README or CHANGELO
 
 ## 2. Current Version
 
-Current version: **v0.0.4**
+Current version: **v0.0.5**
 
-v0.0.4 is the **Folder Scanner + Metadata Extractor + Perceptual Hashing + Similarity Grouping** release.
+v0.0.5 is the **Quality Metrics** release.
 
-The v0.0.4 implementation is considered complete.
+The v0.0.5 implementation is considered complete.
 
 The Keptit development progression is:
 
@@ -28,6 +28,7 @@ The Keptit development progression is:
 * v0.0.2 — Metadata Extraction
 * v0.0.3 — Perceptual Hashing
 * v0.0.4 — Similarity Grouping
+* v0.0.5 — Quality Metrics
 
 The current repository contains:
 
@@ -46,6 +47,7 @@ Keptit/
 │   ├── hashing.py
 │   ├── metadata.py
 │   ├── models.py
+│   ├── quality.py
 │   └── scanner.py
 │
 └── tests/
@@ -54,6 +56,7 @@ Keptit/
     ├── test_hashing.py
     ├── test_metadata.py
     ├── test_models.py
+    ├── test_quality.py
     └── test_scanner.py
 ```
 
@@ -87,7 +90,7 @@ Do not rewrite working code without a concrete reason.
 
 Do not implement features belonging to a later Keptit version unless explicitly requested.
 
-For example, while working on v0.0.4, do not add:
+For example, while working on v0.0.5, do not add:
 
 * duplicate detection
 * burst grouping
@@ -102,6 +105,8 @@ For example, while working on v0.0.4, do not add:
 * AI/ML image analysis
 * cloud processing
 * external AI APIs
+* overall quality scoring
+* quality-based ranking or selection
 
 A future feature may be discussed conceptually, but discussion is not permission to implement it.
 
@@ -132,18 +137,35 @@ Scanner
  └── Image indexing
        │
        ▼
-    ImageRecord[]
+   ImageRecord[]
        │
-       ▼
-   Grouping
-       │
-       ├── Hash comparison
-       ├── Similarity threshold
-       └── Group construction
-              │
-              ▼
-          ImageGroup[]
+       ├───────────────┐
+       ▼               ▼
+   Grouping        Quality
+       │           Analysis
+       ▼               │
+ ImageGroup[]          ▼
+                  QualityMetrics
 ```
+
+### Quality Analysis
+
+`keptit/quality.py`
+
+The quality module contains local image-quality measurement logic.
+
+It currently calculates:
+
+* sharpness variance
+* mean luminance
+* dark pixel ratio
+* bright pixel ratio
+
+Quality analysis is independent of grouping. It does not rank images, calculate an overall quality score, select photographs, or modify image files.
+
+Quality calculations use Pillow and operate on image pixel data.
+
+Quality analysis is exposed through the CLI as an optional `--quality` capability.
 
 ### CLI
 
@@ -207,7 +229,7 @@ Tests should not depend on a user's personal photo collection.
 
 ---
 
-## 5. Current v0.0.4 Scope
+## 5. Current v0.0.5 Scope
 
 The scanner currently supports:
 
@@ -243,6 +265,15 @@ The current implementation also:
 * produces deterministic similarity groups
 * excludes images without valid perceptual hashes from grouping
 * excludes failed image records from grouping
+* calculates local image-quality measurements
+* calculates sharpness variance as a sharpness/focus proxy
+* calculates mean luminance
+* calculates dark pixel ratio
+* calculates bright pixel ratio
+* limits quality-analysis working resolution to a maximum dimension of 1024 pixels
+* stores quality measurements in `QualityMetrics`
+* optionally attaches quality measurements to `ImageRecord`
+* exposes quality analysis through the `--quality` CLI option
 
 The current `ImageRecord` contains:
 
@@ -258,10 +289,196 @@ The current `ImageRecord` contains:
 * scan status
 * error information when applicable
 * perceptual hash when hashing succeeds
+* quality metrics when quality analysis has been performed
 
 ---
 
-## 6. Dependencies
+## 6. v0.0.5 Quality Analysis
+
+v0.0.5 establishes the first local image-quality measurement layer.
+
+The quality-analysis module is:
+
+```text
+keptit/quality.py
+```
+
+The module currently provides measurements for:
+
+* sharpness variance
+* mean luminance
+* dark pixel ratio
+* bright pixel ratio
+
+These are measurements rather than quality judgments.
+
+The implementation deliberately does not calculate:
+
+* an overall quality score
+* a 0–100 quality rating
+* image ranking
+* image selection
+* confidence
+* best-photo determination
+
+### Sharpness
+
+Sharpness is measured using the variance of a discrete Laplacian response over a grayscale working image.
+
+Conceptually:
+
+```text
+Image
+ ↓
+Grayscale
+ ↓
+Working-resolution image
+ ↓
+Laplacian response
+ ↓
+Variance
+ ↓
+Sharpness measurement
+```
+
+The resulting value is a sharpness/focus proxy.
+
+Higher values generally indicate greater local intensity variation, but a higher value does not objectively mean that a photograph is better.
+
+The measurement can be affected by:
+
+* scene texture
+* fine detail
+* image noise
+* compression artifacts
+* motion blur
+* defocus blur
+* resizing
+* camera or editor sharpening
+
+### Mean Luminance
+
+Mean luminance is calculated from grayscale pixel values.
+
+The value ranges from approximately:
+
+```text
+0 → black
+255 → white
+```
+
+Higher values indicate a brighter average image.
+
+Higher mean luminance does not mean that an image has better exposure.
+
+### Dark Pixel Ratio
+
+Dark pixel ratio is the proportion of analyzed pixels with grayscale luminance below:
+
+```text
+32
+```
+
+The value ranges from 0.0 to 1.0.
+
+### Bright Pixel Ratio
+
+Bright pixel ratio is the proportion of analyzed pixels with grayscale luminance above:
+
+```text
+223
+```
+
+The value ranges from 0.0 to 1.0.
+
+### Working Resolution
+
+Quality analysis uses a bounded working resolution.
+
+The longest image dimension is limited to:
+
+```text
+1024 pixels
+```
+
+Images smaller than this limit are not enlarged.
+
+The bounded resolution prevents unnecessarily expensive processing of very large photographs.
+
+Because resizing can affect numerical measurements, the working-resolution behavior is explicitly tested.
+
+### Data Model
+
+Quality measurements are represented by:
+
+```python
+@dataclass
+class QualityMetrics:
+    sharpness_variance: float
+    mean_luminance: float
+    dark_pixel_ratio: float
+    bright_pixel_ratio: float
+```
+
+`ImageRecord` contains:
+
+```python
+quality_metrics: QualityMetrics | None
+```
+
+`None` means that quality measurements have not been attached to that record.
+
+Quality metrics are optional data. A valid image does not become invalid merely because quality analysis was not requested.
+
+### CLI Behavior
+
+Quality analysis is opt-in.
+
+Normal scanning:
+
+```text
+keptit scan <folder>
+```
+
+does not calculate or display quality metrics.
+
+Quality analysis:
+
+```text
+keptit scan <folder> --quality
+```
+
+calculates and displays the measurements.
+
+Quality analysis can also be combined with existing grouping functionality:
+
+```text
+keptit scan <folder> --quality --group
+```
+
+The CLI remains a presentation layer. Metric calculations belong in `keptit/quality.py`.
+
+### Dependency Decision
+
+v0.0.5 does not introduce a new runtime dependency for quality analysis.
+
+Pillow is sufficient for the implemented image loading, grayscale conversion, resizing, and pixel-processing requirements.
+
+No OpenCV, NumPy, SciPy, scikit-image, machine-learning library, external API, or cloud service is required.
+
+### Performance
+
+Quality analysis was initially evaluated at full source-image resolution.
+
+Large images caused unnecessarily high processing time, so quality calculations were bounded to a maximum working dimension of 1024 pixels.
+
+Local validation demonstrated a substantial reduction in processing time while preserving deterministic metric behavior.
+
+The 1024-pixel limit is therefore part of the implemented quality-analysis behavior rather than an undocumented optimization.
+
+---
+
+## 7. Dependencies
 
 Keep dependencies minimal.
 
@@ -285,7 +502,7 @@ Perceptual hashing is implemented using Pillow. No additional hashing library is
 
 ---
 
-## 7. Error Handling
+## 8. Error Handling
 
 Keptit should fail gracefully at the image level.
 
@@ -315,7 +532,7 @@ Hashing failures use the explicit `HashingError` exception rather than broad sil
 
 ---
 
-## 8. Testing Rules
+## 9. Testing Rules
 
 Every meaningful behavior should have a corresponding test.
 
@@ -375,6 +592,27 @@ For similarity grouping, tests should cover:
 * scanner-to-grouping integration
 * CLI grouping output
 
+For quality analysis, tests should cover:
+
+* black images
+* white images
+* middle-gray images
+* mixed exposure images
+* high-frequency images
+* blurred images
+* sharpness directional behavior
+* luminance behavior
+* dark-pixel ratios
+* bright-pixel ratios
+* bounded working resolution
+* small-image behavior
+* deterministic calculations
+* `QualityMetrics` model behavior
+* `ImageRecord` quality-metric integration
+* quality-analysis behavior on failed records
+* CLI quality-option parsing
+* CLI quality output
+
 Run:
 
 ```bash
@@ -387,7 +625,7 @@ A passing test suite is necessary but does not by itself prove that the implemen
 
 ---
 
-## 9. CLI Rules
+## 10. CLI Rules
 
 The CLI should remain a thin wrapper around the core scanner.
 
@@ -415,13 +653,31 @@ and
 keptit scan <folder> --recursive --group
 ```
 
+Quality analysis can be enabled with:
+
+```bash
+keptit scan <folder> --quality
+```
+
+and
+
+```bash
+keptit scan <folder> --recursive --quality
+```
+
+Quality analysis can also be combined with similarity grouping:
+
+```bash
+keptit scan <folder> --quality --group
+```
+
 The scanner should remain usable without invoking the CLI.
 
 Do not move scanner logic into `cli.py`.
 
 ---
 
-## 10. Debugging Workflow
+## 11. Debugging Workflow
 
 When something fails:
 
@@ -441,7 +697,7 @@ Do not perform large rewrites to fix a localized problem.
 
 ---
 
-## 11. Code Style
+## 12. Code Style
 
 Prefer:
 
@@ -466,7 +722,7 @@ The code should remain understandable to a beginner/intermediate Python develope
 
 ---
 
-## 12. Privacy and Product Rules
+## 13. Privacy and Product Rules
 
 Keptit is local-first.
 
@@ -486,7 +742,7 @@ When future image-analysis features are added, their limitations and reasoning s
 
 ---
 
-## 13. Repository Rules
+## 14. Repository Rules
 
 The GitHub repository is the source of truth for the current implementation.
 
@@ -504,7 +760,7 @@ Do not recreate, rename, or move files without a concrete reason.
 
 ---
 
-## 14. Documentation Rules
+## 15. Documentation Rules
 
 Documentation should describe the implementation that actually exists.
 
@@ -520,7 +776,7 @@ Do not create documentation solely to make the repository appear larger or more 
 
 ---
 
-## 15. Version Completion
+## 16. Version Completion
 
 A version should be considered complete only when:
 
@@ -532,11 +788,13 @@ A version should be considered complete only when:
 * documentation reflects the implemented behavior
 * no unfinished feature is presented as complete
 
-For v0.0.4, the completed test suite contains **70 passing tests**.
+v0.0.5 — Quality Metrics is considered complete when its defined quality-measurement scope is implemented, tested, documented, and verified without introducing later-stage ranking, scoring, selection, or deletion functionality.
+
+For v0.0.5, the completed test suite contains **91 passing tests**.
 
 ---
 
-## 16. Working With Future Development Sessions
+## 17. Working With Future Development Sessions
 
 When continuing Keptit development in a new session:
 
@@ -555,7 +813,7 @@ The repository is authoritative for what has actually been implemented.
 
 ---
 
-## 17. Development Philosophy
+## 18. Development Philosophy
 
 Keptit should grow through small verified steps.
 

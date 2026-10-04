@@ -2,6 +2,88 @@
 
 All notable changes to Keptit are documented in this file.
 
+## [0.0.5] - 2026-10-04
+
+### Added
+
+* Added the `QualityMetrics` data model.
+* Added local image-quality analysis using Pillow.
+* Added sharpness variance as a sharpness/focus proxy.
+* Added mean luminance measurement.
+* Added dark pixel ratio measurement.
+* Added bright pixel ratio measurement.
+* Added bounded-resolution quality analysis with a maximum working dimension of 1024 pixels.
+* Added optional quality analysis through the `--quality` CLI option.
+* Added quality metrics output showing raw measurements without an overall quality score.
+* Added optional quality analysis integration with `ImageRecord`.
+* Added deterministic quality-analysis tests.
+* Added working-resolution and small-image behavior tests.
+* Added tests for quality analysis of successful image records.
+* Added tests ensuring failed image records are not analyzed.
+* Added CLI tests for quality-option parsing and quality output.
+* Kept Pillow as the only runtime dependency; no additional image-processing dependency was introduced.
+
+### Quality Metrics Scope
+
+The following are supported in v0.0.5:
+
+* Sharpness variance using a discrete Laplacian response.
+* Mean luminance using grayscale pixel values.
+* Dark pixel ratio for pixels below luminance 32.
+* Bright pixel ratio for pixels above luminance 223.
+* Maximum quality-analysis working dimension of 1024 pixels.
+* Deterministic quality calculations.
+* Optional quality analysis through the CLI.
+* Raw metric output without an overall quality score.
+
+Sharpness variance is treated as a sharpness/focus proxy rather than a direct measure of photographic quality. Its value can be affected by texture, noise, compression, scene content, blur, resizing, and sharpening.
+
+The quality metrics describe observable image characteristics. They do not determine which photograph is better.
+
+The following remain intentionally outside the scope of v0.0.5:
+
+* Overall image quality scoring
+* Image ranking
+* Image selection
+* Best-photo selection
+* Confidence calculation
+* Face detection
+* Eye detection
+* Smile detection
+* Image deletion
+* AI/ML image analysis
+* Cloud image processing
+* GUI
+* Web interface
+* XMP modification
+* RAW image support
+
+### Testing
+
+* Completed the v0.0.5 test suite with **91 passing tests**.
+* Added tests for quality metric calculations.
+* Added deterministic synthetic-image quality tests.
+* Added sharpness behavior tests.
+* Added exposure measurement tests.
+* Added working-resolution tests.
+* Added small-image preservation tests.
+* Added deterministic calculation tests.
+* Added `ImageRecord` quality-metric integration tests.
+* Added failed-image quality-analysis tests.
+* Added CLI quality-option tests.
+* Added CLI quality-output tests.
+* Preserved all previous scanner, metadata, perceptual-hashing, and grouping regression coverage.
+
+### Performance
+
+Quality analysis uses a bounded working resolution to prevent large source images from causing excessive processing time.
+
+During local validation, three test images took approximately 52 seconds with the original full-resolution Python Laplacian implementation and approximately 0.88 seconds after the bounded-resolution and implementation optimization.
+
+A subsequent end-to-end test through image indexing and quality analysis processed the same three images in approximately 1.10 seconds.
+
+These measurements are development-machine benchmarks rather than formal performance guarantees.
+
 ## [0.0.4] - 2026-10-02
 
 ### Added

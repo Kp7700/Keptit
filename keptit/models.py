@@ -4,6 +4,16 @@ from pathlib import Path
 from typing import Optional
 
 @dataclass
+class QualityMetrics:
+    """Measurements describing observable image-quality properties."""
+    
+    sharpness_variance: float
+    mean_luminance: float
+    dark_pixel_ratio: float
+    bright_pixel_ratio: float
+
+
+@dataclass
 class ImageMetadata:
     """Metadata extracted from an image."""
 
@@ -31,6 +41,7 @@ class ImageRecord:
     error: Optional[str] = None
     metadata: Optional[ImageMetadata] = None
     perceptual_hash: Optional[str] = None
+    quality_metrics: QualityMetrics | None = None
 
 @dataclass
 class ScanResult:
@@ -57,5 +68,3 @@ class ScanResult:
         """Return the number of supported images that failed to index."""
         return sum(image.status == "failed" for image in self.images)
 
-
-    

@@ -1,7 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 
-from keptit.models import ImageMetadata, ImageRecord
+from keptit.models import ImageMetadata, ImageRecord, QualityMetrics
 
 
 def test_image_record_creation():
@@ -144,3 +144,77 @@ def test_image_record_stores_perceptual_hash():
     )
 
     assert record.perceptual_hash == "f3a9c7810e6b4d92"
+
+
+def test_quality_metrics_stores_values():
+    metrics = QualityMetrics(
+        sharpness_variance=12.5,
+        mean_luminance=128.0,
+        dark_pixel_ratio=0.2,
+        bright_pixel_ratio=0.1,
+    )
+
+    assert metrics.sharpness_variance == 12.5
+    assert metrics.mean_luminance == 128.0
+    assert metrics.dark_pixel_ratio == 0.2
+    assert metrics.bright_pixel_ratio == 0.1
+
+
+def test_quality_metrics_equality():
+    first = QualityMetrics(
+        sharpness_variance=12.5,
+        mean_luminance=128.0,
+        dark_pixel_ratio=0.2,
+        bright_pixel_ratio=0.1,
+    )
+
+    second = QualityMetrics(
+        sharpness_variance=12.5,
+        mean_luminance=128.0,
+        dark_pixel_ratio=0.2,
+        bright_pixel_ratio=0.1,
+    )
+
+    assert first == second
+
+
+def test_image_record_quality_metrics_defaults_to_none():
+    record = ImageRecord(
+        id="test-id",
+        path="example.jpg",
+        filename="example.jpg",
+        extension=".jpg",
+        file_size=100,
+        width=100,
+        height=100,
+        modified_time=0.0,
+        image_format="JPEG",
+        status="success",
+    )
+
+    assert record.quality_metrics is None
+
+
+def test_image_record_can_store_quality_metrics():
+    metrics = QualityMetrics(
+        sharpness_variance=12.5,
+        mean_luminance=128.0,
+        dark_pixel_ratio=0.2,
+        bright_pixel_ratio=0.1,
+    )
+
+    record = ImageRecord(
+        id="test-id",
+        path="example.jpg",
+        filename="example.jpg",
+        extension=".jpg",
+        file_size=100,
+        width=100,
+        height=100,
+        modified_time=0.0,
+        image_format="JPEG",
+        status="success",
+        quality_metrics=metrics,
+    )
+
+    assert record.quality_metrics == metrics

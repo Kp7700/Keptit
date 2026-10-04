@@ -1,6 +1,10 @@
 from pathlib import Path
 
-from keptit.cli import build_parser
+from PIL import Image
+
+from keptit.cli import build_parser, format_quality_summary
+from keptit.quality import analyze_image_quality
+from keptit.scanner import format_scan_summary, scan_folder
 
 
 def test_scan_without_group_flag():
@@ -159,3 +163,90 @@ def test_scan_without_group_does_not_run_grouping(monkeypatch, capsys):
     captured = capsys.readouterr()
 
     assert captured.out == "Scan summary\n"
+
+
+def test_parser_accepts_quality_flag():
+    parser = build_parser()
+
+    args = parser.parse_args([
+        "scan",
+        "photos",
+        "--quality",
+    ])
+
+    assert args.quality is True
+
+
+def test_parser_quality_defaults_to_false():
+    parser = build_parser()
+
+    args = parser.parse_args([
+        "scan",
+        "photos",
+    ])
+
+    assert args.quality is False
+
+
+def test_quality_flag_outputs_quality_metrics(tmp_path, capsys):
+    image_path = tmp_path / "test.png"
+
+    image = Image.new("L", (100, 100), 128)
+    image.save(image_path)
+
+    parser = build_parser()
+
+    args = parser.parse_args([
+        "scan",
+        str(tmp_path),
+        "--quality",
+    ])
+
+    result = scan_folder(
+        args.folder,
+        recursive=args.recursive,
+    )
+
+    result.images = [
+        analyze_image_quality(image)
+        for image in result.images
+    ]
+
+    print(format_scan_summary(result))
+
+    if args.quality:
+        print(format_quality_summary(result))
+
+    output = capsys.readouterr().out
+
+    assert "Quality Metrics:" in output
+    assert "test.png" in output
+    assert "Sharpness variance:" in output
+    assert "Mean luminance:" in output
+    assert "Dark pixel ratio:" in output
+    assert "Bright pixel ratio:" in output
+
+
+def test_quality_metrics_not_output_without_quality_flag(tmp_path, capsys):
+    image_path = tmp_path / "test.png"
+
+    image = Image.new("L", (100, 100), 128)
+    image.save(image_path)
+
+    parser = build_parser()
+
+    args = parser.parse_args([
+        "scan",
+        str(tmp_path),
+    ])
+
+    result = scan_folder(
+        args.folder,
+        recursive=args.recursive,
+    )
+
+    print(format_scan_summary(result))
+
+    output = capsys.readouterr().out
+
+    assert "Quality Metrics:" not in output
