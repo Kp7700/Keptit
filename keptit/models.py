@@ -6,7 +6,7 @@ from typing import Optional
 @dataclass
 class QualityMetrics:
     """Measurements describing observable image-quality properties."""
-    
+
     sharpness_variance: float
     mean_luminance: float
     dark_pixel_ratio: float
