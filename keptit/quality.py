@@ -3,6 +3,7 @@ from dataclasses import replace
 from PIL import Image
 
 from keptit.models import ImageRecord, QualityMetrics
+from keptit.scoring import calculate_quality_score
 
 
 MAX_DIMENSION = 1024
@@ -100,7 +101,10 @@ def analyze_image_quality(record: ImageRecord) -> ImageRecord:
             f"Failed to calculate quality metrics for {record.filename}: {error}"
         ) from error
 
+    score = calculate_quality_score(metrics)
+
     return replace(
         record,
         quality_metrics=metrics,
+        quality_score=score,
     )

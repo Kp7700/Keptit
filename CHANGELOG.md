@@ -2,6 +2,74 @@
 
 All notable changes to Keptit are documented in this file.
 
+## [0.0.6] - 2026-10-06
+
+### Added
+
+* Added the `QualityScore` data model.
+* Added deterministic quality scoring based on the existing `QualityMetrics`.
+* Added logarithmic normalization of sharpness variance.
+* Added a fixed sharpness calibration reference of `10,000.0`.
+* Added exposure/clipping scoring based on dark and bright pixel ratios.
+* Added equal weighting between the normalized sharpness and exposure components.
+* Added a bounded overall heuristic score in the range 0–100.
+* Added quality-score integration with `ImageRecord`.
+* Added quality-score output to the existing `--quality` CLI option.
+* Added validation for invalid quality-metric inputs.
+* Added deterministic scoring tests.
+* Added mathematical boundary and monotonicity tests.
+* Added quality-score integration tests.
+* Preserved the existing quality measurements without changing their meaning.
+* Kept scoring separate from image scanning, grouping, and CLI presentation.
+* Kept Pillow as the only runtime dependency.
+
+### Quality Scoring Scope
+
+The following are supported in v0.0.6:
+
+* Deterministic scoring from existing `QualityMetrics`.
+* Logarithmic normalization of sharpness variance.
+* Sharpness calibration reference of `10,000.0`.
+* Exposure/clipping component derived from dark and bright pixel ratios.
+* Equal 50/50 weighting between sharpness and exposure components.
+* Final score bounded to 0–100.
+* Per-image `QualityScore` stored on `ImageRecord`.
+* Optional quality-score output through the existing `--quality` CLI option.
+* Absolute scoring that does not depend on the other images in the current scan.
+
+The score is defined as a deterministic heuristic indicating how favorable the currently implemented image-quality measurements are under Keptit's scoring configuration.
+
+It is not:
+
+* a percentage of photographic quality
+* a probability that an image is the best photograph
+* a probability that an image should be kept
+* an objective measure of artistic or photographic quality
+
+The scoring calculation is:
+
+```text
+sharpness_component =
+    min(
+        log1p(sharpness_variance) /
+        log1p(10000.0),
+        1.0
+    )
+
+clipping_ratio =
+    dark_pixel_ratio + bright_pixel_ratio
+
+exposure_component =
+    1.0 - clipping_ratio
+
+overall =
+    0.5 * sharpness_component
+    + 0.5 * exposure_component
+
+overall_score =
+    round(overall * 100)
+```
+
 ## [0.0.5] - 2026-10-04
 
 ### Added

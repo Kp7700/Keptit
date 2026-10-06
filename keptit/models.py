@@ -12,6 +12,13 @@ class QualityMetrics:
     dark_pixel_ratio: float
     bright_pixel_ratio: float
 
+@dataclass
+class QualityScore:
+    """Deterministic heuristic score derived from quality measurements."""
+
+    sharpness_component: float
+    exposure_component: float
+    overall_score: int
 
 @dataclass
 class ImageMetadata:
@@ -42,6 +49,7 @@ class ImageRecord:
     metadata: Optional[ImageMetadata] = None
     perceptual_hash: Optional[str] = None
     quality_metrics: QualityMetrics | None = None
+    quality_score: QualityScore | None = None
 
 @dataclass
 class ScanResult:

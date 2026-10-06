@@ -16,11 +16,11 @@ This document is a development guide. It does not replace the README or CHANGELO
 
 ## 2. Current Version
 
-Current version: **v0.0.5**
+Current version: **v0.0.6**
 
-v0.0.5 is the **Quality Metrics** release.
+v0.0.6 is the **Quality Scoring** release.
 
-The v0.0.5 implementation is considered complete.
+The v0.0.6 implementation is considered complete.
 
 The Keptit development progression is:
 
@@ -29,6 +29,7 @@ The Keptit development progression is:
 * v0.0.3 — Perceptual Hashing
 * v0.0.4 — Similarity Grouping
 * v0.0.5 — Quality Metrics
+* v0.0.6 — Quality Scoring
 
 The current repository contains:
 
@@ -48,7 +49,8 @@ Keptit/
 │   ├── metadata.py
 │   ├── models.py
 │   ├── quality.py
-│   └── scanner.py
+│   ├── scanner.py
+│   └── scoring.py
 │
 └── tests/
     ├── test_cli.py
@@ -57,7 +59,8 @@ Keptit/
     ├── test_metadata.py
     ├── test_models.py
     ├── test_quality.py
-    └── test_scanner.py
+    ├── test_scanner.py
+    └── test_scoring.py
 ```
 
 Do not assume files or directories exist if they are not present in the repository.
@@ -90,23 +93,25 @@ Do not rewrite working code without a concrete reason.
 
 Do not implement features belonging to a later Keptit version unless explicitly requested.
 
-For example, while working on v0.0.5, do not add:
+For example, while working on v0.0.6, do not add:
 
-* duplicate detection
-* burst grouping
-* image quality scoring
 * confidence scoring
-* face detection
 * image ranking
 * automatic selection
+* automatic deletion
+* face detection
+* eye detection
+* smile detection
+* subject detection
 * RAW support
 * GUI
 * XMP functionality
 * AI/ML image analysis
 * cloud processing
 * external AI APIs
-* overall quality scoring
-* quality-based ranking or selection
+* database storage
+* group-level winner selection
+* quality-based deletion
 
 A future feature may be discussed conceptually, but discussion is not permission to implement it.
 
@@ -124,7 +129,7 @@ Existing behavior should remain working unless the change intentionally modifies
 
 Keptit should keep responsibilities separated.
 
-The basic architecture is:
+The current architecture is:
 
 ```text
 CLI
@@ -144,8 +149,14 @@ Scanner
    Grouping        Quality
        │           Analysis
        ▼               │
- ImageGroup[]          ▼
+ImageGroup[]           ▼
                   QualityMetrics
+                       │
+                       ▼
+                    Scoring
+                       │
+                       ▼
+                  QualityScore
 ```
 
 ### Quality Analysis
@@ -161,11 +172,43 @@ It currently calculates:
 * dark pixel ratio
 * bright pixel ratio
 
-Quality analysis is independent of grouping. It does not rank images, calculate an overall quality score, select photographs, or modify image files.
+Quality analysis is independent of grouping.
+
+Quality analysis does not determine whether a photograph should be kept.
 
 Quality calculations use Pillow and operate on image pixel data.
 
 Quality analysis is exposed through the CLI as an optional `--quality` capability.
+
+### Scoring
+
+`keptit/scoring.py`
+
+The scoring module converts existing `QualityMetrics` into a deterministic `QualityScore`.
+
+Scoring must consume existing measurements rather than reopening images or recalculating image-quality metrics.
+
+The scoring module is responsible for:
+
+* validating scoring inputs
+* normalizing sharpness
+* deriving the exposure/clipping component
+* combining the components
+* producing the final bounded score
+
+Scoring does not:
+
+* scan folders
+* open image files
+* calculate image-quality measurements
+* perform grouping
+* rank photographs
+* select photographs
+* delete photographs
+* use AI/ML
+* call external services
+
+The scoring module should remain independently testable.
 
 ### CLI
 
@@ -173,7 +216,9 @@ Quality analysis is exposed through the CLI as an optional `--quality` capabilit
 
 The CLI handles command-line arguments and presentation of results.
 
-It should not contain scanner logic.
+It should not contain scanner logic or scoring mathematics.
+
+The CLI may display `QualityMetrics` and `QualityScore` returned by the underlying modules.
 
 ### Scanner
 
@@ -193,12 +238,21 @@ from keptit.scanner import scan_folder
 
 `keptit/models.py`
 
-Models represent structured data produced by the scanner.
+Models represent structured data produced by the scanner and later analysis stages.
 
-The current primary models are:
+The current primary models include:
 
 * `ImageRecord`
 * `ScanResult`
+* `ImageMetadata`
+* `QualityMetrics`
+* `QualityScore`
+
+`QualityMetrics` represents measurements.
+
+`QualityScore` represents the deterministic heuristic derived from those measurements.
+
+The distinction between the two should remain explicit.
 
 ### Grouping
 
@@ -215,7 +269,7 @@ Grouping should:
 * exclude images without valid perceptual hashes
 * exclude failed image records
 
-Grouping should not perform image scanning, metadata extraction, or perceptual-hash generation.
+Grouping should not perform image scanning, metadata extraction, perceptual-hash generation, quality measurement, or quality scoring.
 
 The grouping module should be usable independently of the CLI.
 
@@ -223,13 +277,13 @@ The grouping module should be usable independently of the CLI.
 
 `tests/`
 
-Tests verify the behavior of the models, scanner, and related functionality.
+Tests verify the behavior of the models, scanner, metadata extraction, hashing, grouping, quality analysis, scoring, and CLI.
 
 Tests should not depend on a user's personal photo collection.
 
 ---
 
-## 5. Current v0.0.5 Scope
+## 5. Current v0.0.6 Scope
 
 The scanner currently supports:
 
@@ -273,7 +327,10 @@ The current implementation also:
 * limits quality-analysis working resolution to a maximum dimension of 1024 pixels
 * stores quality measurements in `QualityMetrics`
 * optionally attaches quality measurements to `ImageRecord`
-* exposes quality analysis through the `--quality` CLI option
+* calculates a deterministic quality score from existing quality measurements
+* stores the score in `QualityScore`
+* optionally attaches the score to `ImageRecord`
+* exposes quality measurements and scores through the `--quality` CLI option
 
 The current `ImageRecord` contains:
 
@@ -288,193 +345,294 @@ The current `ImageRecord` contains:
 * image format
 * scan status
 * error information when applicable
+* metadata when metadata extraction has been performed
 * perceptual hash when hashing succeeds
 * quality metrics when quality analysis has been performed
+* quality score when scoring has been performed
 
 ---
 
-## 6. v0.0.5 Quality Analysis
+## 6. v0.0.6 Quality Scoring
 
-v0.0.5 establishes the first local image-quality measurement layer.
+v0.0.6 establishes the first deterministic scoring layer on top of Keptit's existing quality measurements.
 
-The quality-analysis module is:
+The central distinction is:
 
 ```text
-keptit/quality.py
+v0.0.5
+
+Image
+ ↓
+QualityMetrics
 ```
 
-The module currently provides measurements for:
+versus:
 
-* sharpness variance
-* mean luminance
-* dark pixel ratio
-* bright pixel ratio
+```text
+v0.0.6
 
-These are measurements rather than quality judgments.
+QualityMetrics
+ ↓
+Normalization
+ ↓
+Weighted combination
+ ↓
+QualityScore
+```
 
-The implementation deliberately does not calculate:
+A score is not a new image measurement.
 
-* an overall quality score
-* a 0–100 quality rating
-* image ranking
-* image selection
-* confidence
-* best-photo determination
+It is a mathematical transformation of existing measurements.
 
-### Sharpness
+### QualityScore Model
 
-Sharpness is measured using the variance of a discrete Laplacian response over a grayscale working image.
+The scoring result is represented by:
 
-Conceptually:
+```python
+@dataclass
+class QualityScore:
+    sharpness_component: float
+    exposure_component: float
+    overall_score: int
+```
+
+The components are retained because they make the resulting score inspectable and explainable.
+
+### Score Definition
+
+The v0.0.6 score represents:
+
+> A deterministic heuristic indicating how favorable the currently implemented image-quality measurements are under Keptit's scoring configuration.
+
+It does not represent:
+
+* percentage photographic quality
+* probability that an image is the best photograph
+* probability that a user should keep the image
+* artistic quality
+* composition quality
+* emotional value
+* subject importance
+* photographic intent
+
+### Sharpness Component
+
+The existing v0.0.5 `sharpness_variance` measurement is used as the sharpness input.
+
+Because Laplacian variance is unbounded and can have a heavy-tailed distribution, it is transformed logarithmically.
+
+The fixed calibration reference is:
+
+```text
+SHARPNESS_REFERENCE = 10,000.0
+```
+
+The normalized sharpness component is:
+
+```text
+sharpness_component =
+    min(
+        log1p(sharpness_variance)
+        /
+        log1p(10,000.0),
+        1.0
+    )
+```
+
+The `log1p` transformation compresses very large values while preserving ordering for non-negative sharpness measurements.
+
+The result is bounded to:
+
+```text
+0.0 ≤ sharpness_component ≤ 1.0
+```
+
+Values at or above the calibration reference saturate at `1.0`.
+
+The reference value is an engineering calibration point for normalization. It is not a claim that a photograph with a sharpness variance of 10,000 represents perfect photographic sharpness.
+
+### Exposure Component
+
+The current exposure-related component is based on clipping ratios rather than mean luminance.
+
+The clipping ratio is:
+
+```text
+clipping_ratio =
+    dark_pixel_ratio
+    +
+    bright_pixel_ratio
+```
+
+The exposure component is:
+
+```text
+exposure_component =
+    1.0 - clipping_ratio
+```
+
+The result is bounded to:
+
+```text
+0.0 ≤ exposure_component ≤ 1.0
+```
+
+This means that a greater proportion of pixels below the dark threshold or above the bright threshold reduces the component.
+
+Mean luminance is intentionally not included directly in the score.
+
+The reason is that mean luminance alone does not establish correct exposure. A deliberately dark night photograph or a bright snow scene may have an appropriate mean luminance even though it is far from the middle of the numerical range.
+
+Therefore the current score treats clipping as a measurable signal rather than claiming to determine the correct exposure of an arbitrary scene.
+
+### Weighting
+
+The v0.0.6 score gives equal weight to the two normalized components:
+
+```text
+overall =
+    0.5 × sharpness_component
+    +
+    0.5 × exposure_component
+```
+
+The final displayed score is:
+
+```text
+overall_score =
+    round(overall × 100)
+```
+
+Therefore:
+
+```text
+0 ≤ overall_score ≤ 100
+```
+
+The equal weighting is an explicit baseline heuristic.
+
+It is not presented as scientifically optimal or as universal photographic truth.
+
+The weighting remains hard-coded in v0.0.6 because introducing user-configurable scoring parameters would add configuration complexity without sufficient evidence that it is necessary at this stage.
+
+### Absolute vs Dataset-Relative Behavior
+
+v0.0.6 uses absolute scoring.
+
+The score for an image depends only on:
+
+* its `QualityMetrics`
+* the fixed scoring configuration
+
+It does not depend on the other images currently being scanned.
+
+Therefore adding or removing another photograph from a scan does not change an existing image's score.
+
+This preserves:
+
+* determinism
+* reproducibility
+* cross-scan comparability
+* simple testing
+* predictable behavior
+
+Dataset-relative normalization is not part of v0.0.6.
+
+### Missing Metrics
+
+Scoring requires a complete `QualityMetrics` object.
+
+`quality_metrics = None` means that quality measurements have not been calculated and therefore no score should be produced.
+
+The scoring function does not silently substitute arbitrary values for missing measurements.
+
+The current `calculate_quality_score()` function accepts a `QualityMetrics` instance and validates its numerical fields.
+
+### Invalid Inputs
+
+The scoring layer rejects invalid measurements.
+
+It rejects:
+
+* negative sharpness variance
+* dark-pixel ratios outside `[0.0, 1.0]`
+* bright-pixel ratios outside `[0.0, 1.0]`
+* dark and bright ratios whose sum exceeds `1.0`
+
+Invalid data should not be silently converted into a valid-looking score.
+
+### Determinism
+
+For the same `QualityMetrics` values and scoring configuration, the result must be identical.
+
+The scoring system uses:
+
+* no randomness
+* no machine-learning inference
+* no external service
+* no time-dependent behavior
+* no hidden state
+* no dataset-relative normalization
+
+### Performance
+
+Scoring operates on already-calculated `QualityMetrics`.
+
+It does not reopen image files.
+
+It does not recalculate the Laplacian or exposure measurements.
+
+The intended flow is:
 
 ```text
 Image
  ↓
-Grayscale
+Quality Analysis
  ↓
-Working-resolution image
+QualityMetrics
  ↓
-Laplacian response
+Scoring
  ↓
-Variance
- ↓
-Sharpness measurement
+QualityScore
 ```
 
-The resulting value is a sharpness/focus proxy.
+rather than:
 
-Higher values generally indicate greater local intensity variation, but a higher value does not objectively mean that a photograph is better.
+```text
+QualityScore request
+ ↓
+reopen image
+ ↓
+recalculate metrics
+ ↓
+score
+```
 
-The measurement can be affected by:
+This avoids unnecessary duplicate image processing.
 
-* scene texture
-* fine detail
-* image noise
+### Known Limitations
+
+The v0.0.6 score is a heuristic and has known limitations.
+
+The underlying sharpness measurement is based on Laplacian variance. Laplacian variance measures local high-frequency intensity variation; it does not understand photographic intent or semantic image quality.
+
+Consequently, high-frequency content such as:
+
+* texture
+* noise
 * compression artifacts
-* motion blur
-* defocus blur
-* resizing
-* camera or editor sharpening
+* strong patterns
+* artificial sharpening
 
-### Mean Luminance
+can increase the sharpness measurement without necessarily indicating a better photograph.
 
-Mean luminance is calculated from grayscale pixel values.
+Real-image testing demonstrated this limitation. A visually blurred image can receive a higher score than another visually preferable image when its measured clipping behavior and high-frequency content produce more favorable numerical inputs.
 
-The value ranges from approximately:
+This is not treated as a scoring implementation failure. It is a limitation of the underlying measurement model.
 
-```text
-0 → black
-255 → white
-```
+The current v0.0.6 implementation therefore must not claim to identify the objectively best photograph.
 
-Higher values indicate a brighter average image.
-
-Higher mean luminance does not mean that an image has better exposure.
-
-### Dark Pixel Ratio
-
-Dark pixel ratio is the proportion of analyzed pixels with grayscale luminance below:
-
-```text
-32
-```
-
-The value ranges from 0.0 to 1.0.
-
-### Bright Pixel Ratio
-
-Bright pixel ratio is the proportion of analyzed pixels with grayscale luminance above:
-
-```text
-223
-```
-
-The value ranges from 0.0 to 1.0.
-
-### Working Resolution
-
-Quality analysis uses a bounded working resolution.
-
-The longest image dimension is limited to:
-
-```text
-1024 pixels
-```
-
-Images smaller than this limit are not enlarged.
-
-The bounded resolution prevents unnecessarily expensive processing of very large photographs.
-
-Because resizing can affect numerical measurements, the working-resolution behavior is explicitly tested.
-
-### Data Model
-
-Quality measurements are represented by:
-
-```python
-@dataclass
-class QualityMetrics:
-    sharpness_variance: float
-    mean_luminance: float
-    dark_pixel_ratio: float
-    bright_pixel_ratio: float
-```
-
-`ImageRecord` contains:
-
-```python
-quality_metrics: QualityMetrics | None
-```
-
-`None` means that quality measurements have not been attached to that record.
-
-Quality metrics are optional data. A valid image does not become invalid merely because quality analysis was not requested.
-
-### CLI Behavior
-
-Quality analysis is opt-in.
-
-Normal scanning:
-
-```text
-keptit scan <folder>
-```
-
-does not calculate or display quality metrics.
-
-Quality analysis:
-
-```text
-keptit scan <folder> --quality
-```
-
-calculates and displays the measurements.
-
-Quality analysis can also be combined with existing grouping functionality:
-
-```text
-keptit scan <folder> --quality --group
-```
-
-The CLI remains a presentation layer. Metric calculations belong in `keptit/quality.py`.
-
-### Dependency Decision
-
-v0.0.5 does not introduce a new runtime dependency for quality analysis.
-
-Pillow is sufficient for the implemented image loading, grayscale conversion, resizing, and pixel-processing requirements.
-
-No OpenCV, NumPy, SciPy, scikit-image, machine-learning library, external API, or cloud service is required.
-
-### Performance
-
-Quality analysis was initially evaluated at full source-image resolution.
-
-Large images caused unnecessarily high processing time, so quality calculations were bounded to a maximum working dimension of 1024 pixels.
-
-Local validation demonstrated a substantial reduction in processing time while preserving deterministic metric behavior.
-
-The 1024-pixel limit is therefore part of the implemented quality-analysis behavior rather than an undocumented optimization.
+Future versions may investigate improved quality measurements, but such work is outside the completed v0.0.6 scoring scope.
 
 ---
 
@@ -482,7 +640,7 @@ The 1024-pixel limit is therefore part of the implemented quality-analysis behav
 
 Keep dependencies minimal.
 
-The current runtime dependency is:
+The current runtime dependency remains:
 
 ```text
 Pillow
@@ -492,13 +650,13 @@ The project uses Python's standard library wherever practical.
 
 `pytest` is used for testing.
 
+The v0.0.6 scoring layer does not introduce a new runtime dependency.
+
 Do not introduce a new dependency merely because it makes a small task more convenient.
 
 Before adding a dependency, determine whether the standard library or an existing dependency is sufficient.
 
-Libraries such as OpenCV, imagehash, NumPy, SQLite, PySide6, or other large dependencies should not be introduced without a concrete requirement and explicit approval when the addition changes the project's intended architecture or scope.
-
-Perceptual hashing is implemented using Pillow. No additional hashing library is required.
+Libraries such as OpenCV, NumPy, SciPy, scikit-image, machine-learning libraries, or other large dependencies should not be introduced without a concrete requirement and explicit approval when the addition changes the project's intended architecture or scope.
 
 ---
 
@@ -526,9 +684,11 @@ except:
 
 Errors should be explicit and useful for debugging.
 
-Perceptual hashing is part of successful image indexing in v0.0.3. If perceptual hashing fails, the image is represented as a failed `ImageRecord` and the scanner continues processing remaining files.
+Perceptual hashing is part of successful image indexing. If perceptual hashing fails, the image is represented as a failed `ImageRecord` and the scanner continues processing remaining files.
 
 Hashing failures use the explicit `HashingError` exception rather than broad silent exception handling.
+
+Quality scoring does not silently replace invalid numerical measurements.
 
 ---
 
@@ -542,6 +702,7 @@ Tests should preferably use:
 * temporary directories
 * synthetic images
 * small controlled test files
+* directly constructed numerical inputs where appropriate
 
 Do not require personal photos for automated tests.
 
@@ -613,6 +774,30 @@ For quality analysis, tests should cover:
 * CLI quality-option parsing
 * CLI quality output
 
+For quality scoring, tests should cover:
+
+* zero sharpness
+* reference sharpness
+* sharpness above the reference
+* monotonic sharpness behavior
+* zero clipping
+* complete dark clipping
+* complete bright clipping
+* monotonic clipping behavior
+* score bounds
+* perfect component combination
+* minimum component combination
+* deterministic scoring
+* mathematical consistency between `QualityMetrics` and `QualityScore`
+* invalid sharpness values
+* invalid dark-pixel ratios
+* invalid bright-pixel ratios
+* invalid combined clipping ratios
+* `QualityScore` model behavior
+* integration with `ImageRecord`
+* integration with quality analysis
+* CLI quality-score output
+
 Run:
 
 ```bash
@@ -623,11 +808,13 @@ before considering a change complete.
 
 A passing test suite is necessary but does not by itself prove that the implementation is correct. Actual CLI behavior and output should also be checked when relevant.
 
+Real-world images may be used for manual validation, but they should not replace deterministic automated tests.
+
 ---
 
 ## 10. CLI Rules
 
-The CLI should remain a thin wrapper around the core scanner.
+The CLI should remain a thin wrapper around the core scanner and analysis modules.
 
 Current commands:
 
@@ -647,19 +834,19 @@ Similarity grouping can be enabled with:
 keptit scan <folder> --group
 ```
 
-and
+and:
 
 ```bash
 keptit scan <folder> --recursive --group
 ```
 
-Quality analysis can be enabled with:
+Quality analysis and scoring can be enabled with:
 
 ```bash
 keptit scan <folder> --quality
 ```
 
-and
+and:
 
 ```bash
 keptit scan <folder> --recursive --quality
@@ -671,9 +858,20 @@ Quality analysis can also be combined with similarity grouping:
 keptit scan <folder> --quality --group
 ```
 
-The scanner should remain usable without invoking the CLI.
+When `--quality` is used, the CLI displays:
 
-Do not move scanner logic into `cli.py`.
+* raw quality measurements
+* normalized sharpness component
+* exposure component
+* overall heuristic score
+
+The CLI should label the result clearly as a quality score or heuristic score.
+
+The CLI should not contain scoring mathematics.
+
+The CLI should consume the `QualityScore` already produced by the scoring layer.
+
+Do not move scanner, quality-analysis, or scoring logic into `cli.py`.
 
 ---
 
@@ -738,6 +936,10 @@ Keptit should never silently delete or modify user photographs.
 
 Do not describe a heuristic as objectively determining the "best" photograph.
 
+The v0.0.6 score is not a keeper recommendation.
+
+It is not a probability that the user should retain the image.
+
 When future image-analysis features are added, their limitations and reasoning should be explainable to the user.
 
 ---
@@ -758,6 +960,26 @@ Before modifying an existing component:
 
 Do not recreate, rename, or move files without a concrete reason.
 
+All code changes and Git operations are performed locally by the project developer.
+
+The normal Git workflow is:
+
+```text
+Local VS Code changes
+        ↓
+Local tests
+        ↓
+Diff review
+        ↓
+Commit
+        ↓
+Tag
+        ↓
+Push to GitHub
+```
+
+The GitHub repository should only receive a version after the local implementation and documentation have been verified.
+
 ---
 
 ## 15. Documentation Rules
@@ -770,9 +992,15 @@ When functionality is added:
 
 * update `README.md` when user-facing behavior changes
 * update `CHANGELOG.md` when a versioned change is completed
-* update this file only when development rules, architecture, or workflow change
+* update this file only when development rules, architecture, or workflow genuinely change
 
 Do not create documentation solely to make the repository appear larger or more professional.
+
+The v0.0.6 scoring formula, normalization, weighting, score range, deterministic behavior, and limitations should be documented accurately.
+
+Do not describe the score as objective photographic quality.
+
+Do not document future ranking, selection, confidence, or deletion functionality as implemented.
 
 ---
 
@@ -787,10 +1015,13 @@ A version should be considered complete only when:
 * the actual CLI behavior has been checked where applicable
 * documentation reflects the implemented behavior
 * no unfinished feature is presented as complete
+* known limitations are documented when they materially affect interpretation
 
-v0.0.5 — Quality Metrics is considered complete when its defined quality-measurement scope is implemented, tested, documented, and verified without introducing later-stage ranking, scoring, selection, or deletion functionality.
+v0.0.6 — Quality Scoring is considered complete when its defined scoring scope is implemented, tested, documented, and verified without introducing later-stage ranking, selection, confidence, deletion, or image-analysis functionality.
 
-For v0.0.5, the completed test suite contains **91 passing tests**.
+The completed v0.0.6 test suite contains **113 passing tests**.
+
+The real-world CLI validation also confirmed that the scoring pipeline operates on actual JPEG and PNG images and produces deterministic measurements and scores.
 
 ---
 
@@ -811,6 +1042,10 @@ Do not rely solely on previous conversation context.
 
 The repository is authoritative for what has actually been implemented.
 
+When beginning a new version, first define its scope before modifying code.
+
+Do not assume that a limitation discovered in one version automatically authorizes redesigning that version. Determine whether the issue belongs to the next version's scope.
+
 ---
 
 ## 18. Development Philosophy
@@ -824,3 +1059,33 @@ The goal is to build a reliable, understandable, privacy-preserving open-source 
 When there is a choice between a simple solution and an unnecessarily complex one, prefer the simple solution unless there is a concrete technical reason not to.
 
 When there is uncertainty, inspect the code and test the behavior rather than assuming.
+
+For scoring specifically, do not mistake mathematical complexity for technical quality.
+
+A simple heuristic with explicit assumptions is preferable to a sophisticated formula whose behavior cannot be defended.
+
+The current v0.0.6 scoring layer establishes:
+
+```text
+QualityMetrics
+      ↓
+Normalization
+      ↓
+Deterministic weighting
+      ↓
+QualityScore
+```
+
+It deliberately does not establish:
+
+```text
+QualityScore
+      ↓
+Ranking
+      ↓
+Selection
+      ↓
+Deletion
+```
+
+Those are separate future capabilities and must remain separate unless explicitly introduced in a later version.

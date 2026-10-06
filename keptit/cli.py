@@ -70,7 +70,7 @@ def format_group_summary(images, groups) -> str:
 
 
 def format_quality_summary(result) -> str:
-    """Return a human-readable summary of calculated quality metrics."""
+    """Return a human-readable summary of calculated quality metrics and scores."""
     lines = [
         "",
         "Quality Metrics:",
@@ -88,6 +88,7 @@ def format_quality_summary(result) -> str:
 
     for image in sorted(analyzed_images, key=lambda item: item.filename):
         metrics = image.quality_metrics
+        score = image.quality_score
 
         lines.extend([
             "",
@@ -97,6 +98,13 @@ def format_quality_summary(result) -> str:
             f"  Dark pixel ratio: {metrics.dark_pixel_ratio}",
             f"  Bright pixel ratio: {metrics.bright_pixel_ratio}",
         ])
+
+        if score is not None:
+            lines.extend([
+                f"  Sharpness component: {score.sharpness_component}",
+                f"  Exposure component: {score.exposure_component}",
+                f"  Overall score: {score.overall_score}/100",
+            ])
 
     return "\n".join(lines)
 

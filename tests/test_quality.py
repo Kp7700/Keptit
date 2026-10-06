@@ -163,6 +163,8 @@ def test_analyze_image_quality_does_not_mutate_original_record(tmp_path):
 
     assert record.quality_metrics is None
     assert result.quality_metrics is not None
+    assert record.quality_score is None
+    assert result.quality_score is not None
 
 
 def test_analyze_image_quality_preserves_record_fields(tmp_path):
@@ -192,3 +194,44 @@ def test_analyze_image_quality_ignores_failed_record(tmp_path):
 
     assert result is record
     assert result.quality_metrics is None
+
+
+def test_analyze_image_quality_populates_quality_score(tmp_path):
+    path = tmp_path / "test.png"
+
+    image = Image.new("L", (100, 100), 128)
+    image.save(path)
+
+    record = make_test_record(path)
+
+    result = analyze_image_quality(record)
+
+    assert result.quality_score is not None
+    assert 0 <= result.quality_score.overall_score <= 100
+    assert 0.0 <= result.quality_score.sharpness_component <= 1.0
+    assert 0.0 <= result.quality_score.exposure_component <= 1.0
+
+
+def test_analyze_image_quality_score_matches_quality_metrics(tmp_path):
+    path = tmp_path / "test.png"
+
+    image = Image.new("L", (100, 100), 128)
+
+    for x in range(25, 75):
+        for y in range(25, 75):
+            image.putpixel((x, y), 255)
+
+    image.save(path)
+
+    record = make_test_record(path)
+
+    result = analyze_image_quality(record)
+
+    assert result.quality_metrics is not None
+    assert result.quality_score is not None
+
+    from keptit.scoring import calculate_quality_score
+
+    expected = calculate_quality_score(result.quality_metrics)
+
+    assert result.quality_score == expected
